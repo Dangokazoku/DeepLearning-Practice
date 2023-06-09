@@ -18,7 +18,7 @@ for i = 1:600:2401
 end
 
 % 随机裁剪图像
-for n = 25:74
+for n = 25:49
     i = randi([1 2401]);
     j = randi([1 2401]);
     file_name_i = ['image\' num2str(n) '.png'];
@@ -80,7 +80,9 @@ classWeights = median(imageFreq) ./ imageFreq;
 pxLayer = pixelClassificationLayer('Name','labels','Classes',tbl.Name,'ClassWeights',classWeights);
 lgraph = replaceLayer(lgraph,"classification",pxLayer);
 
-%% P4 训练参数设置
+%% P4 设置参数训练网络
+netname = inputdlg('命名该网络','DeepLearning_Practice',[1,39],{'net'});
+
 options = trainingOptions('adam', ...
     'LearnRateSchedule','piecewise',...
     'LearnRateDropPeriod',6,...
@@ -88,12 +90,11 @@ options = trainingOptions('adam', ...
     'InitialLearnRate',1e-3, ...
     'L2Regularization',0.005, ...
     'MaxEpochs',20, ...  
-    'MiniBatchSize',8, ...
+    'MiniBatchSize',16, ...
     'Shuffle','every-epoch', ...
     'VerboseFrequency',2,...
-    'Plots','training-progress',...
-    'ValidationPatience', 4, ...
-    'ExecutionEnvironment','cpu');
+    'Plots','training-progress', ...
+    'ValidationPatience', 4);
 
 % 图像增强
 augmenter = imageDataAugmenter('RandXReflection',true,...
@@ -104,13 +105,27 @@ pximds = pixelLabelImageDatastore(imds,pxds,'DataAugmentation',augmenter);
 [net, info] = trainNetwork(pximds,lgraph,options);
 
 %% P5 验证
-vds = imageDatastore('lable\');
-I = readimage(imds,1);
+vds = imageDatastore('test\');
+I = readimage(vds,2);
 C = semanticseg(I,net);
 B = labeloverlay(I,C,'Colormap',cmap,'Transparency',0.4);
 figure
 imshow(B)
 pixelLabelColorbar(cmap, classes);
+
+%% P6 数据导出
+
+if isa(netname,'cell') == 1
+    netname = cell2mat(netname);
+end
+file_path = fullfile("nets",netname);
+mkdir("nets\",netname)
+file_opt = strcat(file_path,"/",netname,"_训练参数.m");
+file_mat = strcat(file_path,"/",netname,".m");
+file_png = strcat(file_path,"/",netname,"_例图.png");
+save(file_mat,"net");
+save(file_opt,"options");
+imwrite(B,file_png);
 
 %% function1：三通道色度制作标签颜色
 function cmap = ColorMap()
